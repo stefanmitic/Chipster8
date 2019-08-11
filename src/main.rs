@@ -1,5 +1,3 @@
-#[macro_use]
-extern crate lazy_static;
 extern crate rand;
 extern crate sdl2;
 
@@ -8,31 +6,20 @@ use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
 use sdl2::video::Window;
-use std::time::Duration;
 
+use std::env;
 use std::error::Error;
 use std::fs;
 use std::io::Read;
 use std::path;
-use std::thread;
+use std::time::Duration;
 
 mod display;
 mod instruction;
 mod state;
 
-use display::Display;
 use instruction::Instruction;
 use state::State;
-
-use std::sync::Mutex;
-
-// lazy_static! {
-//     static ref STATE: Mutex<state::State> = Mutex::new(state::State::new());
-// }
-
-lazy_static! {
-    static ref RAM: Vec<u8> = vec![0u8; 0xFFF - 0x200];
-}
 
 static PIXELSIZE: u32 = 5;
 
@@ -79,27 +66,39 @@ fn draw_display(canvas: &mut sdl2::render::Canvas<Window>, state: &State) {
     }
 }
 
-fn main() {
-    let mut state: State = State::new();
-    load_program(
-        path::Path::new("D:\\Projects\\Chip8_ROMs\\PONG"),
-        &mut state,
+fn execute(state: &mut State) -> bool {
+    let instruction = Instruction::new(
+        ((state.ram[state.pc as usize]) as u16) << 8 | state.ram[(state.pc + 1) as usize] as u16,
     );
-    let mut hz_passed = 0;
-    // let emu_thread = thread::spawn(move || loop {
-    //     let state: &mut state::State = &mut STATE.lock().unwrap();
-    //     let instruction = instruction::Instruction::new(
-    //         ((state.ram[state.pc as usize]) as u16) << 8
-    //             & state.ram[(state.pc + 1) as usize] as u16,
-    //     );
 
-    //     if !instruction.function(state) {
-    //         panic!("Failed to execute instruction!");
-    //     }
-    //     state.pc += 2;
-    //     ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 500));
-    // });
-    // UI CODE
+    if !instruction.function(state) {
+        println!("Failed to execute instruction!");
+        return false;
+    }
+    state.pc += 2;
+    true
+}
+
+fn update_timers(state: &mut State) {
+    if state.dt > 0 {
+        state.dt -= 1;
+    }
+
+    if state.st > 0 {
+        state.st -= 1;
+    }
+}
+
+fn main() {
+    let mut cycles_passed = 0;
+    let mut state: State = State::new();
+    let args: Vec<String> = env::args().collect();
+
+    if args.len() < 2 {
+        println!("Usage: chipster8 path_to_rom");
+        return;
+    }
+    load_program(path::Path::new(&args[1]), &mut state);
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
 
@@ -127,34 +126,16 @@ fn main() {
             }
         }
 
-        let instruction = instruction::Instruction::new(
-            ((state.ram[state.pc as usize]) as u16) << 8
-                | state.ram[(state.pc + 1) as usize] as u16,
-        );
-
-        if !instruction.function(&mut state) {
-            panic!("Failed to execute instruction!");
+        execute(&mut state);
+        if cycles_passed >= 10 {
+            update_timers(&mut state);
+            cycles_passed = 0;
+        } else {
+            cycles_passed += 1;
         }
-        state.pc += 2;
-
-        hz_passed += 1;
-        if hz_passed >= 10 {
-            if state.dt > 0 {
-                state.dt -= 1;
-            }
-
-            if state.st > 0 {
-                state.st -= 1;
-            }
-
-            hz_passed = 0;
-        }
-
         draw_display(&mut canvas, &state);
 
         canvas.present();
         ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 600));
     }
-
-    // emu_thread.join();
 }
