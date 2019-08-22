@@ -8,7 +8,11 @@ edition = "2018"
 
 [dependencies]
 rand = "0.7.0"
+imgui = "0.1.0"
+imgui-glium-renderer = "0.1.0"
+imgui-sys = "0.1.0"
+glium = "0.25.1"
 
-[dependencies.sdl2]
-version = "0.32.2"
-features = ["bundled", ]
+# [dependencies.sdl2]
+# version = "0.32.2"
+# features = ["bundled", ]

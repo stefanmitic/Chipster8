@@ -31,7 +31,12 @@ impl Display {
             let y = ((y + row as u8) % 32) as usize;
             for i in 0..7 {
                 let x = ((x + i) % 64) as usize;
-                self.data[y][x] ^= if (0b10000000 >> i & byte) > 0 { 1 } else { collision = true; 0 };
+                self.data[y][x] ^= if (0b10000000 >> i & byte) > 0 {
+                    1
+                } else {
+                    collision = true;
+                    0
+                };
             }
         }
         collision

@@ -1,27 +1,31 @@
+#[macro_use]
+extern crate glium;
+#[macro_use]
+extern crate imgui;
+extern crate imgui_glium_renderer;
 extern crate rand;
-extern crate sdl2;
 
-use sdl2::event::Event;
-use sdl2::keyboard::Keycode;
-use sdl2::pixels::Color;
-use sdl2::rect::Rect;
-use sdl2::video::Window;
-
+use glium::glutin::{
+    dpi::LogicalPosition, ElementState::Pressed, Event::WindowEvent, MouseButton, MouseScrollDelta,
+    TouchPhase, WindowEvent::*,
+};
 use std::env;
 use std::error::Error;
 use std::fs;
 use std::io::Read;
 use std::path;
 use std::time::Duration;
+use std::time::Instant;
 
 mod display;
+mod gui;
 mod instruction;
+mod opengl;
 mod state;
 
+use gui::{Gui, MouseState, UiAction};
 use instruction::Instruction;
 use state::State;
-
-static PIXELSIZE: u32 = 5;
 
 fn load_program(path: &path::Path, state: &mut state::State) {
     let mut file = match fs::File::open(path) {
@@ -48,24 +52,6 @@ fn load_program(path: &path::Path, state: &mut state::State) {
     state.ram[0x200..(0x200 + bytes_read)].clone_from_slice(&buffer[0..]);
 }
 
-fn draw_display(canvas: &mut sdl2::render::Canvas<Window>, state: &State) {
-    for (row_no, row) in state.display.data.iter().enumerate() {
-        for (pixel_no, pixel) in row.iter().enumerate() {
-            let x = PIXELSIZE * pixel_no as u32;
-            let y = PIXELSIZE * row_no as u32;
-            if *pixel > 0 {
-                canvas.set_draw_color(Color::RGB(255, 255, 255));
-            } else {
-                canvas.set_draw_color(Color::RGB(0, 0, 0));
-            }
-            match canvas.fill_rect(Rect::new(x as i32, y as i32, x + PIXELSIZE, y + PIXELSIZE)) {
-                Ok(ok) => ok,
-                Err(err) => panic!(err),
-            }
-        }
-    }
-}
-
 fn execute(state: &mut State) -> bool {
     let instruction = Instruction::new(
         ((state.ram[state.pc as usize]) as u16) << 8 | state.ram[(state.pc + 1) as usize] as u16,
@@ -90,8 +76,19 @@ fn update_timers(state: &mut State) {
 }
 
 fn main() {
-    let mut cycles_passed = 0;
+    use glium::Surface;
     let mut state: State = State::new();
+    let mut mouse_state = MouseState::default();
+    let (display, mut events_loop) = opengl::create_window();
+    let mut gui: Gui = Gui::new(&display);
+
+    let mut last_frame = Instant::now();
+    let mut closed = false;
+    let mut simmulation_running = true;
+    let mut simmulation_step = false;
+
+    let indices = glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList);
+    let program = opengl::generate_program(&display);
     let args: Vec<String> = env::args().collect();
 
     if args.len() < 2 {
@@ -99,43 +96,87 @@ fn main() {
         return;
     }
     load_program(path::Path::new(&args[1]), &mut state);
-    let sdl_context = sdl2::init().unwrap();
-    let video_subsystem = sdl_context.video().unwrap();
 
-    let window = video_subsystem
-        .window("Chipster8", PIXELSIZE * 64, PIXELSIZE * 32)
-        .position_centered()
-        .build()
-        .unwrap();
-
-    let mut canvas = window.into_canvas().build().unwrap();
-
-    canvas.set_draw_color(Color::RGB(0, 255, 255));
-    canvas.clear();
-    canvas.present();
-    let mut event_pump = sdl_context.event_pump().unwrap();
-    'running: loop {
-        for event in event_pump.poll_iter() {
-            match event {
-                Event::Quit { .. }
-                | Event::KeyDown {
-                    keycode: Some(Keycode::Escape),
-                    ..
-                } => break 'running,
-                _ => {}
+    let mut cycles_passed = 0;
+    while !closed {
+        events_loop.poll_events(|event| {
+            if let WindowEvent { event, .. } = event {
+                match event {
+                    CloseRequested => closed = true,
+                    CursorMoved {
+                        position: LogicalPosition { x, y },
+                        ..
+                    } => mouse_state.pos = [x as f32, y as f32],
+                    MouseInput { state, button, .. } => match button {
+                        MouseButton::Left => mouse_state.pressed[0] = state == Pressed,
+                        MouseButton::Right => mouse_state.pressed[1] = state == Pressed,
+                        MouseButton::Middle => mouse_state.pressed[2] = state == Pressed,
+                        _ => {}
+                    },
+                    MouseWheel {
+                        delta: MouseScrollDelta::LineDelta(_, y),
+                        phase: TouchPhase::Moved,
+                        ..
+                    } => mouse_state.wheel = y,
+                    MouseWheel {
+                        delta: MouseScrollDelta::PixelDelta(pos),
+                        phase: TouchPhase::Moved,
+                        ..
+                    } => mouse_state.wheel = pos.y as f32,
+                    _ => (),
+                }
             }
+        });
+
+        if simmulation_running || simmulation_step {
+            execute(&mut state);
+            // if cycles_passed >= 10 {
+                update_timers(&mut state);
+            //     cycles_passed = 0;
+            // } else {
+            //     cycles_passed += 1;
+            // }
+            simmulation_step = false;
         }
 
-        execute(&mut state);
-        if cycles_passed >= 10 {
-            update_timers(&mut state);
-            cycles_passed = 0;
-        } else {
-            cycles_passed += 1;
-        }
-        draw_display(&mut canvas, &state);
+        let now = Instant::now();
+        let delta = now - last_frame;
+        let delta_s = delta.as_secs() as f32 + delta.subsec_nanos() as f32 / 1_000_000_000.0;
+        last_frame = now;
 
-        canvas.present();
+        if delta_s < 1.0 / 60.0 {
+            std::thread::sleep(std::time::Duration::from_millis(
+                (1000.0 * (1.0 / 60.0)) as u64,
+            ));
+        }
+
+        gui.update_mouse_state(&mut mouse_state);
+        let shape = opengl::generate_display(&state);
+        let vertex_buffer = glium::VertexBuffer::new(&display, &shape).unwrap();
+        let texture = glium::Texture2d::empty(&display, 400, 200).unwrap();
+        texture.as_surface().clear_color(0.0, 0.0, 0.0, 0.0);
+        texture
+            .as_surface()
+            .draw(
+                &vertex_buffer,
+                &indices,
+                &program,
+                &glium::uniforms::EmptyUniforms,
+                &Default::default(),
+            )
+            .unwrap();
+        let mut target = display.draw();
+        target.clear_color(1.0, 1.0, 1.0, 1.0);
+        gui.render(&mut target, &state, texture);
+        target.finish().unwrap();
+
+        match gui.ui_action {
+            UiAction::Run => simmulation_running = true,
+            UiAction::Stop => simmulation_running = false,
+            UiAction::Step => { simmulation_running = false; simmulation_step = true;}
+            UiAction::None => ()
+        }
+
         ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 600));
     }
 }
