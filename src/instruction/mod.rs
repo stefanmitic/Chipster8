@@ -2,8 +2,33 @@ use crate::state::State;
 use rand::Rng;
 use std::fmt;
 
+fn get_x(opcode: u16) -> u16 {
+    (opcode & 0x0F00) >> 8
+}
+
+fn get_y(opcode: u16) -> u16 {
+    (opcode & 0x00F0) >> 4
+}
+
+fn get_nnn(opcode: u16) -> u16 {
+    opcode & 0x0FFF
+}
+
+fn get_addr(opcode: u16) -> u16 {
+    opcode & 0x0FFF
+}
+
+fn get_nibble(opcode: u16) -> u16 {
+    opcode & 0x000F
+}
+
+fn get_byte(opcode: u16) -> u8 {
+    (opcode & 0x00FF) as u8
+}
+
 pub struct Instruction {
     pub opcode: u16,
+    pub code: String,
     pub function: Box<dyn Fn(u16, &mut State) -> bool>,
 }
 
@@ -24,6 +49,7 @@ impl Instruction {
                 // 0x00E0 - CLS
                 0x00E0 => Instruction {
                     opcode: opcode,
+                    code: String::from("CLS"),
                     function: Box::new(|_opcode, state| {
                         state.display.reset();
                         true
@@ -32,16 +58,19 @@ impl Instruction {
                 // 0x00EE - RET
                 0x00EE => Instruction {
                     opcode: opcode,
+                    code: String::from("RET"),
                     function: Box::new(|_opcode, state| {
                         state.pc = state.pop();
+                        state.pc += 2;
                         true
                     }),
                 },
                 // 0nnn - SYS addr
                 _ => Instruction {
                     opcode: opcode,
+                    code: String::from(format!("SYS {:03X}", get_addr(opcode))),
                     function: Box::new(|opcode, state| {
-                        state.pc = opcode & 0x0FFF;
+                        state.pc = get_addr(opcode);
                         true
                     }),
                 },
@@ -49,78 +78,106 @@ impl Instruction {
             // 1nnn - JMP addr
             0x1000 => Instruction {
                 opcode: opcode,
+                code: String::from(format!("JMP {:03X}", get_nnn(opcode))),
                 function: Box::new(|opcode, state| {
-                    state.pc = opcode & 0x0FFF;
+                    state.pc = get_nnn(opcode);
                     true
                 }),
             },
             // 2nnn - CALL addr
             0x2000 => Instruction {
                 opcode: opcode,
+                code: String::from(format!("CALL {:03X}", get_addr(opcode))),
                 function: Box::new(|opcode, state| {
                     state.push(state.pc);
-                    state.pc = opcode & 0x0FFF;
+                    state.pc = get_addr(opcode);
                     true
                 }),
             },
             // 3xkk - SE Vx, byte
             0x3000 => Instruction {
                 opcode: opcode,
+                code: String::from(format!(
+                    "SE V{:01X}, {:02X}",
+                    get_x(opcode),
+                    get_byte(opcode)
+                )),
                 function: Box::new(|opcode, state| {
-                    let x = (opcode & 0x0F00) >> 8;
-                    let byte = (opcode & 0x00FF) as u8;
+                    let x = get_x(opcode);
+                    let byte = get_byte(opcode);
 
                     if state.v[x as usize] == byte {
                         state.pc += 2;
                     }
+                    state.pc += 2;
                     true
                 }),
             },
             // 4xkk - SNE Vx, byte
             0x4000 => Instruction {
                 opcode: opcode,
+                code: String::from(format!(
+                    "SNE V{:01X}, {:02X}",
+                    get_x(opcode),
+                    get_byte(opcode)
+                )),
                 function: Box::new(|opcode, state| {
-                    let x = (opcode & 0x0F00) >> 8;
-                    let byte = (opcode & 0x00FF) as u8;
+                    let x = get_x(opcode);
+                    let byte = get_byte(opcode);
 
                     if state.v[x as usize] != byte {
                         state.pc += 2;
                     }
+                    state.pc += 2;
                     true
                 }),
             },
             // 5xkk - SE Vx, Vy
             0x5000 => Instruction {
                 opcode: opcode,
+                code: String::from(format!("SE V{:01X}, V{:01X}", get_x(opcode), get_y(opcode))),
                 function: Box::new(|opcode, state| {
-                    let x = (opcode & 0x0F00) >> 8;
-                    let y = (opcode & 0x00F0) >> 4;
+                    let x = get_x(opcode);
+                    let y = get_y(opcode);
 
                     if state.v[x as usize] == state.v[y as usize] {
                         state.pc += 2;
                     }
+                    state.pc += 2;
                     true
                 }),
             },
             // 6xkk - LD Vx, byte
             0x6000 => Instruction {
                 opcode: opcode,
+                code: String::from(format!(
+                    "LD V{:01X}, {:02X}",
+                    get_x(opcode),
+                    get_byte(opcode)
+                )),
                 function: Box::new(|opcode, state| {
-                    let x = (opcode & 0x0F00) >> 8;
-                    let byte = (opcode & 0x00FF) as u8;
+                    let x = get_x(opcode);
+                    let byte = get_byte(opcode);
 
                     state.v[x as usize] = byte;
+                    state.pc += 2;
                     true
                 }),
             },
             // 7xkk - ADD Vx, byte
             0x7000 => Instruction {
                 opcode: opcode,
+                code: String::from(format!(
+                    "ADD V{:01X}, {:02X}",
+                    get_x(opcode),
+                    get_byte(opcode)
+                )),
                 function: Box::new(|opcode, state| {
-                    let x = (opcode & 0x0F00) >> 8;
-                    let byte = (opcode & 0x00FF) as u8;
+                    let x = get_x(opcode);
+                    let byte = get_byte(opcode);
 
-                    state.v[x as usize] += byte;
+                    state.v[x as usize] = (state.v[x as usize] as u16 + byte as u16) as u8;
+                    state.pc += 2;
                     true
                 }),
             },
@@ -128,53 +185,82 @@ impl Instruction {
                 // 8xy0 - LD Vx, Vy
                 0x8000 => Instruction {
                     opcode: opcode,
+                    code: String::from(format!(
+                        "LD V{:01X}, V{:01X}",
+                        get_x(opcode),
+                        get_y(opcode)
+                    )),
                     function: Box::new(|opcode, state| {
-                        let x = (opcode & 0x0F00) >> 8;
-                        let y = (opcode & 0x00F0) >> 4;
+                        let x = get_x(opcode);
+                        let y = get_y(opcode);
 
                         state.v[x as usize] = state.v[y as usize];
+                        state.pc += 2;
                         true
                     }),
                 },
                 // 8xy1 - OR Vx, Vy
                 0x8001 => Instruction {
                     opcode: opcode,
+                    code: String::from(format!(
+                        "OR V{:01X}, V{:01X}",
+                        get_x(opcode),
+                        get_y(opcode)
+                    )),
                     function: Box::new(|opcode, state| {
-                        let x = (opcode & 0x0F00) >> 8;
-                        let y = (opcode & 0x00F0) >> 4;
+                        let x = get_x(opcode);
+                        let y = get_y(opcode);
 
                         state.v[x as usize] |= state.v[y as usize];
+                        state.pc += 2;
                         true
                     }),
                 },
                 // 8xy2 - AND Vx, Vy
                 0x8002 => Instruction {
                     opcode: opcode,
+                    code: String::from(format!(
+                        "AND V{:01X}, V{:01X}",
+                        get_x(opcode),
+                        get_y(opcode)
+                    )),
                     function: Box::new(|opcode, state| {
-                        let x = (opcode & 0x0F00) >> 8;
-                        let y = (opcode & 0x00F0) >> 4;
+                        let x = get_x(opcode);
+                        let y = get_y(opcode);
 
                         state.v[x as usize] &= state.v[y as usize];
+                        state.pc += 2;
                         true
                     }),
                 },
                 // 8xy3 - XOR Vx, Vy
                 0x8003 => Instruction {
                     opcode: opcode,
+                    code: String::from(format!(
+                        "XOR V{:01X}, V{:01X}",
+                        get_x(opcode),
+                        get_y(opcode)
+                    )),
                     function: Box::new(|opcode, state| {
-                        let x = (opcode & 0x0F00) >> 8;
-                        let y = (opcode & 0x00F0) >> 4;
+                        let x = get_x(opcode);
+                        let y = get_y(opcode);
 
                         state.v[x as usize] ^= state.v[y as usize];
+                        state.pc += 2;
                         true
                     }),
                 },
                 // 8xy4 - ADD Vx, Vy
                 0x8004 => Instruction {
                     opcode: opcode,
+                    code: String::from(format!(
+                        "ADD V{:01X}, V{:01X}",
+                        get_x(opcode),
+                        get_y(opcode)
+                    )),
                     function: Box::new(|opcode, state| {
-                        let x = (opcode & 0x0F00) >> 8;
-                        let y = (opcode & 0x00F0) >> 4;
+                        let x = get_x(opcode);
+                        let y = get_y(opcode);
                         let result: u16 = state.v[x as usize] as u16 + state.v[y as usize] as u16;
                         if result > 255 {
                             state.v[15] = 1;
@@ -182,15 +268,21 @@ impl Instruction {
                             state.v[15] = 0;
                         }
                         state.v[x as usize] = (result % 0xFF) as u8;
+                        state.pc += 2;
                         true
                     }),
                 },
                 // 8xy5 - SUB Vx, Vy
                 0x8005 => Instruction {
                     opcode: opcode,
+                    code: String::from(format!(
+                        "SUB V{:01X}, V{:01X}",
+                        get_x(opcode),
+                        get_y(opcode)
+                    )),
                     function: Box::new(|opcode, state| {
-                        let x = (opcode & 0x0F00) >> 8;
-                        let y = (opcode & 0x00F0) >> 4;
+                        let x = get_x(opcode);
+                        let y = get_y(opcode);
 
                         if state.v[x as usize] > state.v[y as usize] {
                             state.v[15] = 1;
@@ -200,26 +292,34 @@ impl Instruction {
 
                         let result: i8 = state.v[x as usize] as i8 - state.v[y as usize] as i8;
                         state.v[x as usize] = result as u8;
+                        state.pc += 2;
                         true
                     }),
                 },
                 // 8xy6 - SHR Vx {, Vy}
                 0x8006 => Instruction {
                     opcode: opcode,
+                    code: String::from(format!("SHR V{:01X}", get_x(opcode))),
                     function: Box::new(|opcode, state| {
-                        let x = (opcode & 0x0F00) >> 8;
+                        let x = get_x(opcode);
 
                         state.v[15] = state.v[x as usize] & 0x01;
                         state.v[x as usize] >>= 1;
+                        state.pc += 2;
                         true
                     }),
                 },
                 // 8xy7 - SUBN Vx, Vy
                 0x8007 => Instruction {
                     opcode: opcode,
+                    code: String::from(format!(
+                        "SUBN V{:01X}, V{:01X}",
+                        get_x(opcode),
+                        get_y(opcode)
+                    )),
                     function: Box::new(|opcode, state| {
-                        let x = (opcode & 0x0F00) >> 8;
-                        let y = (opcode & 0x00F0) >> 4;
+                        let x = get_x(opcode);
+                        let y = get_y(opcode);
 
                         if state.v[y as usize] > state.v[x as usize] {
                             state.v[15] = 1;
@@ -229,22 +329,26 @@ impl Instruction {
 
                         let result: i8 = state.v[y as usize] as i8 - state.v[x as usize] as i8;
                         state.v[x as usize] = result as u8;
+                        state.pc += 2;
                         true
                     }),
                 },
                 // 8xyE - SHL Vx {, Vy}
                 0x800E => Instruction {
                     opcode: opcode,
+                    code: String::from(format!("SHL V{:01X}", get_x(opcode))),
                     function: Box::new(|opcode, state| {
-                        let x = (opcode & 0x0F00) >> 8;
+                        let x = get_x(opcode);
 
                         state.v[15] = (state.v[x as usize] & 0x80) >> 7;
                         state.v[x as usize] <<= 1;
+                        state.pc += 2;
                         true
                     }),
                 },
                 _ => Instruction {
                     opcode: opcode,
+                    code: String::from(format!("Unknonw instruction: {:04X}", opcode)),
                     function: Box::new(|opcode, state| {
                         println!("Unknown instruction: {:04X}", opcode);
                         println!("State: {:#?}", state);
@@ -255,9 +359,14 @@ impl Instruction {
             // 9xy0 - SNE Vx, Vy
             0x9000 => Instruction {
                 opcode: opcode,
+                code: String::from(format!(
+                    "SNE V{:01X}, V{:01X}",
+                    get_x(opcode),
+                    get_y(opcode)
+                )),
                 function: Box::new(|opcode, state| {
-                    let x = (opcode & 0x0F00) >> 8;
-                    let y = (opcode & 0x00F0) >> 4;
+                    let x = get_x(opcode);
+                    let y = get_y(opcode);
 
                     if state.v[x as usize] != state.v[y as usize] {
                         state.pc += 2;
@@ -268,18 +377,21 @@ impl Instruction {
             // Annn - LD I, addr
             0xA000 => Instruction {
                 opcode: opcode,
+                code: String::from(format!("LD I, {:03X}", get_addr(opcode))),
                 function: Box::new(|opcode, state| {
-                    let addr = opcode & 0x0FFF;
+                    let addr = get_addr(opcode);
 
                     state.i = addr;
+                    state.pc += 2;
                     true
                 }),
             },
             // Bnnn - JP V0, addr
             0xB000 => Instruction {
                 opcode: opcode,
+                code: String::from(format!("JP V0, {:03X}", get_addr(opcode))),
                 function: Box::new(|opcode, state| {
-                    let addr = opcode & 0x0FFF;
+                    let addr = get_addr(opcode);
 
                     state.pc = state.v[0] as u16 + addr;
                     true
@@ -288,22 +400,33 @@ impl Instruction {
             // Cxkk - RND Vx, byte
             0xC000 => Instruction {
                 opcode: opcode,
+                code: String::from(format!(
+                    "RND V{:01X}, {:02X}",
+                    get_x(opcode),
+                    get_byte(opcode)
+                )),
                 function: Box::new(|opcode, state| {
-                    let x = (opcode & 0x0F00) >> 8;
-                    let byte = (opcode & 0x00FF) as u8;
+                    let x = get_x(opcode);
+                    let byte = get_byte(opcode);
 
                     state.v[x as usize] = rand::thread_rng().gen_range(0, 256) as u8 & byte;
-
+                    state.pc += 2;
                     true
                 }),
             },
             // Dxyn - DRW Vx, Vy, nibble
             0xD000 => Instruction {
                 opcode: opcode,
+                code: String::from(format!(
+                    "DRW V{:01X}, V{:01X}, {:01X}",
+                    get_x(opcode),
+                    get_x(opcode),
+                    get_nibble(opcode)
+                )),
                 function: Box::new(|opcode, state| {
-                    let x = (opcode & 0x0F00) >> 8;
-                    let y = (opcode & 0x00F0) >> 4;
-                    let nibble = opcode & 0x000F;
+                    let x = get_x(opcode);
+                    let y = get_y(opcode);
+                    let nibble = get_nibble(opcode);
                     let sprite = &state.ram[(state.i as usize)..(state.i + nibble) as usize];
 
                     state.v[15] = state.display.display_sprite(
@@ -311,6 +434,8 @@ impl Instruction {
                         state.v[y as usize],
                         sprite,
                     ) as u8;
+
+                    state.pc += 2;
                     true
                 }),
             },
@@ -318,27 +443,32 @@ impl Instruction {
                 // Ex9E - SKP Vx
                 0xE09E => Instruction {
                     opcode: opcode,
+                    code: String::from(format!("SKP V{:01X}", get_x(opcode))),
                     function: Box::new(|opcode, state| {
-                        let x = (opcode & 0x0F00) >> 8;
+                        let x = get_x(opcode);
                         if state.keypad[state.v[x as usize] as usize] {
                             state.pc += 2;
                         }
+                        state.pc += 2;
                         true
                     }),
                 },
                 // ExA1 - SKNP Vx
                 0xE0A1 => Instruction {
                     opcode: opcode,
+                    code: String::from(format!("SKNP V{:01X}", get_x(opcode))),
                     function: Box::new(|opcode, state| {
-                        let x = (opcode & 0x0F00) >> 8;
+                        let x = get_x(opcode);
                         if !state.keypad[state.v[x as usize] as usize] {
                             state.pc += 2;
                         }
+                        state.pc += 2;
                         true
                     }),
                 },
                 _ => Instruction {
                     opcode: opcode,
+                    code: String::from(format!("Unknonw instruction: {:04X}", opcode)),
                     function: Box::new(|opcode, state| {
                         println!("Unknown instruction: {:04X}", opcode);
                         println!("State: {:#?}", state);
@@ -350,17 +480,20 @@ impl Instruction {
                 // Fx07 - LD Vx, DT
                 0xF007 => Instruction {
                     opcode: opcode,
+                    code: String::from(format!("LD V{:01X}, DT", get_x(opcode))),
                     function: Box::new(|opcode, state| {
-                        let x = (opcode & 0x0F00) >> 8;
+                        let x = get_x(opcode);
                         state.v[x as usize] = state.dt;
+                        state.pc += 2;
                         true
                     }),
                 },
                 // Fx0A - LD Vx, K
                 0xF00A => Instruction {
                     opcode: opcode,
+                    code: String::from(format!("LD V{:01X}, K", get_x(opcode))),
                     function: Box::new(|opcode, state| {
-                        let x = (opcode & 0x0F00) >> 8;
+                        let x = get_x(opcode);
                         let mut key_pressed = false;
                         while !key_pressed {
                             for (i, k) in state.keypad.iter().enumerate() {
@@ -370,82 +503,98 @@ impl Instruction {
                                 }
                             }
                         }
+                        state.pc += 2;
                         true
                     }),
                 },
                 // Fx15 - LD DT, Vx
                 0xF015 => Instruction {
                     opcode: opcode,
+                    code: String::from(format!("LD DT, V{:01X}", get_x(opcode))),
                     function: Box::new(|opcode, state| {
-                        let x = (opcode & 0x0F00) >> 8;
+                        let x = get_x(opcode);
                         state.dt = state.v[x as usize];
+                        state.pc += 2;
                         true
                     }),
                 },
                 // Fx18 - LD ST, Vx
                 0xF018 => Instruction {
                     opcode: opcode,
+                    code: String::from(format!("LD ST, V{:01X}", get_x(opcode))),
                     function: Box::new(|opcode, state| {
-                        let x = (opcode & 0x0F00) >> 8;
+                        let x = get_x(opcode);
                         state.st = state.v[x as usize];
+                        state.pc += 2;
                         true
                     }),
                 },
                 // Fx1E - ADD I, Vx
                 0xF01E => Instruction {
                     opcode: opcode,
+                    code: String::from(format!("ADD I, V{:01X}", get_x(opcode))),
                     function: Box::new(|opcode, state| {
-                        let x = (opcode & 0x0F00) >> 8;
+                        let x = get_x(opcode);
                         state.i += state.v[x as usize] as u16;
+                        state.pc += 2;
                         true
                     }),
                 },
                 // Fx29 - LD F, Vx
                 0xF029 => Instruction {
                     opcode: opcode,
+                    code: String::from(format!("LD F, V{:01X}", get_x(opcode))),
                     function: Box::new(|opcode, state| {
-                        let x = (opcode & 0x0F00) >> 8;
+                        let x = get_x(opcode);
                         state.i = (state.v[x as usize] * 5) as u16; // Sprites are 8 x 5
+                        state.pc += 2;
                         true
                     }),
                 },
                 // Fx33 - LD B, Vx
                 0xF033 => Instruction {
                     opcode: opcode,
+                    code: String::from(format!("LD B, V{:01X}", get_x(opcode))),
                     function: Box::new(|opcode, state| {
-                        let x = (opcode & 0x0F00) >> 8;
+                        let x = get_x(opcode);
                         let mut data = state.v[x as usize];
                         for i in (0..3).rev() {
                             state.ram[(state.i + i) as usize] = data % 10;
                             data /= 10;
                         }
+                        state.pc += 2;
                         true
                     }),
                 },
                 // Fx55 - LD [I], Vx
                 0xF055 => Instruction {
                     opcode: opcode,
+                    code: String::from(format!("LD [I], V{:01X}", get_x(opcode))),
                     function: Box::new(|opcode, state| {
-                        let x = (opcode & 0x0F00) >> 8;
+                        let x = get_x(opcode);
                         for i in 0..(x + 1) {
                             state.ram[(state.i + i) as usize] = state.v[i as usize];
                         }
+                        state.pc += 2;
                         true
                     }),
                 },
                 // Fx65 - LD Vx, [I]
                 0xF065 => Instruction {
                     opcode: opcode,
+                    code: String::from(format!("LD V{:01X}, [I]", get_x(opcode))),
                     function: Box::new(|opcode, state| {
-                        let x = (opcode & 0x0F00) >> 8;
+                        let x = get_x(opcode);
                         for i in 0..(x + 1) {
                             state.v[i as usize] = state.ram[(state.i + i) as usize];
                         }
+                        state.pc += 2;
                         true
                     }),
                 },
                 _ => Instruction {
                     opcode: opcode,
+                    code: String::from(format!("Unknonw instruction: {:04X}", opcode)),
                     function: Box::new(|opcode, state| {
                         println!("Unknown instruction: {:04X}", opcode);
                         println!("State: {:#?}", state);
@@ -455,6 +604,7 @@ impl Instruction {
             },
             _ => Instruction {
                 opcode: opcode,
+                code: String::from(format!("Unknonw instruction: {:04X}", opcode)),
                 function: Box::new(|opcode, state| {
                     println!("Unknown instruction: {:04X}", opcode);
                     println!("State: {:#?}", state);

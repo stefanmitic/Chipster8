@@ -87,7 +87,7 @@ impl Gui {
             .size([100.0, 0.0], imgui::Condition::Always)
             .build(|| {
                 for i in 0..15 {
-                    ui.text(im_str!("V{}: {:02X}", i, state.v[i]));
+                    ui.text(im_str!("V{:01X}: {:02X}", i, state.v[i]));
                 }
                 ui.separator();
                 ui.text(im_str!("I: {:04X}", state.i));
@@ -128,11 +128,19 @@ impl Gui {
         ui.window(im_str!("Code"))
             .size([0.0, 0.0], imgui::Condition::Always)
             .build(|| {
-                for i in (0..(state.ram.len() - 1)).step_by(2) {
+                for i in (0x200..(state.ram.len() - 1)).step_by(2) {
+                    let _token: ColorStackToken;
+                    if i == state.pc as usize {
+                        _token = ui.push_style_colors(&[(StyleColor::Text, [1.0, 0.0, 0.0, 1.0])]);
+                    }
+
+                    let instruction =
+                        Instruction::new(((state.ram[i]) as u16) << 8 | state.ram[i + 1] as u16);
                     ui.text(im_str!(
-                        "{:04X}: {:04X}",
+                        "{:04X}: {} ({:04X})",
                         i,
-                        ((state.ram[i]) as u16) << 8 | state.ram[i + 1] as u16
+                        instruction.code,
+                        instruction.opcode
                     ));
                 }
             });

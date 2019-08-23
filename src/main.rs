@@ -61,7 +61,6 @@ fn execute(state: &mut State) -> bool {
         println!("Failed to execute instruction!");
         return false;
     }
-    state.pc += 2;
     true
 }
 
@@ -84,7 +83,7 @@ fn main() {
 
     let mut last_frame = Instant::now();
     let mut closed = false;
-    let mut simmulation_running = true;
+    let mut simmulation_running = false;
     let mut simmulation_step = false;
 
     let indices = glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList);
@@ -131,7 +130,7 @@ fn main() {
         if simmulation_running || simmulation_step {
             execute(&mut state);
             // if cycles_passed >= 10 {
-                update_timers(&mut state);
+            update_timers(&mut state);
             //     cycles_passed = 0;
             // } else {
             //     cycles_passed += 1;
@@ -144,11 +143,11 @@ fn main() {
         let delta_s = delta.as_secs() as f32 + delta.subsec_nanos() as f32 / 1_000_000_000.0;
         last_frame = now;
 
-        if delta_s < 1.0 / 60.0 {
-            std::thread::sleep(std::time::Duration::from_millis(
-                (1000.0 * (1.0 / 60.0)) as u64,
-            ));
-        }
+        // if delta_s < 1.0 / 60.0 {
+        //     std::thread::sleep(std::time::Duration::from_millis(
+        //         (1000.0 * (1.0 / 60.0)) as u64,
+        //     ));
+        // }
 
         gui.update_mouse_state(&mut mouse_state);
         let shape = opengl::generate_display(&state);
@@ -173,8 +172,11 @@ fn main() {
         match gui.ui_action {
             UiAction::Run => simmulation_running = true,
             UiAction::Stop => simmulation_running = false,
-            UiAction::Step => { simmulation_running = false; simmulation_step = true;}
-            UiAction::None => ()
+            UiAction::Step => {
+                simmulation_running = false;
+                simmulation_step = true;
+            }
+            UiAction::None => (),
         }
 
         ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 600));
