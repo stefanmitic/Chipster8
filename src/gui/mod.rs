@@ -86,7 +86,7 @@ impl Gui {
         imgui::Window::new(im_str!("Registers"))
             .size([100.0, 0.0], imgui::Condition::Always)
             .build(&ui, || {
-                for i in 0..15 {
+                for i in 0..16 {
                     ui.text(im_str!("V{:01X}: {:02X}", i, state.v[i]));
                 }
                 ui.separator();
@@ -122,6 +122,14 @@ impl Gui {
                 ui.same_line(x);
                 if ui.button(im_str!("Step"), [0.0, 20.0]) {
                     ui_action = UiAction::Step;
+                }
+            });
+
+        imgui::Window::new(im_str!("Keypad"))
+            .size([0.0, 0.0], imgui::Condition::Always)
+            .build(&ui, || {
+                for (i, key) in state.keypad.iter().enumerate() {
+                    ui.text(im_str!("{:01X}: {}", i, key));
                 }
             });
 

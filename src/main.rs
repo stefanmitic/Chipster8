@@ -6,8 +6,8 @@ extern crate imgui_glium_renderer;
 extern crate rand;
 
 use glium::glutin::{
-    dpi::LogicalPosition, ElementState::Pressed, Event::WindowEvent, MouseButton, MouseScrollDelta,
-    TouchPhase, WindowEvent::*,
+    dpi::LogicalPosition, ElementState, ElementState::Pressed, Event::WindowEvent, MouseButton,
+    MouseScrollDelta, TouchPhase, VirtualKeyCode, WindowEvent::*,
 };
 use std::env;
 use std::error::Error;
@@ -74,6 +74,13 @@ fn update_timers(state: &mut State) {
     }
 }
 
+fn is_key_pressed(state: ElementState) -> bool {
+    if state == ElementState::Pressed {
+        return true;
+    }
+    false
+}
+
 fn main() {
     use glium::Surface;
     let mut state: State = State::new();
@@ -97,36 +104,108 @@ fn main() {
     load_program(path::Path::new(&args[1]), &mut state);
 
     while !closed {
-        events_loop.poll_events(|event| {
-            if let WindowEvent { event, .. } = event {
-                match event {
-                    CloseRequested => closed = true,
-                    CursorMoved {
-                        position: LogicalPosition { x, y },
-                        ..
-                    } => mouse_state.pos = [x as f32, y as f32],
-                    MouseInput { state, button, .. } => match button {
-                        MouseButton::Left => mouse_state.pressed[0] = state == Pressed,
-                        MouseButton::Right => mouse_state.pressed[1] = state == Pressed,
-                        MouseButton::Middle => mouse_state.pressed[2] = state == Pressed,
-                        _ => {}
-                    },
-                    MouseWheel {
-                        delta: MouseScrollDelta::LineDelta(_, y),
-                        phase: TouchPhase::Moved,
-                        ..
-                    } => mouse_state.wheel = y,
-                    MouseWheel {
-                        delta: MouseScrollDelta::PixelDelta(pos),
-                        phase: TouchPhase::Moved,
-                        ..
-                    } => mouse_state.wheel = pos.y as f32,
-                    _ => (),
-                }
-            }
-        });
+        // for i in 0..state.keypad.len() - 1 {
+        //     state.keypad[i] = false;
+        // }
+        // events_loop.poll_events(|event| {
+        //     if let WindowEvent { event, .. } = event {
+        //         match event {
+        //             CloseRequested => closed = true,
+        //             CursorMoved {
+        //                 position: LogicalPosition { x, y },
+        //                 ..
+        //             } => mouse_state.pos = [x as f32, y as f32],
+        //             MouseInput { state, button, .. } => match button {
+        //                 MouseButton::Left => mouse_state.pressed[0] = state == Pressed,
+        //                 MouseButton::Right => mouse_state.pressed[1] = state == Pressed,
+        //                 MouseButton::Middle => mouse_state.pressed[2] = state == Pressed,
+        //                 _ => {}
+        //             },
+        //             MouseWheel {
+        //                 delta: MouseScrollDelta::LineDelta(_, y),
+        //                 phase: TouchPhase::Moved,
+        //                 ..
+        //             } => mouse_state.wheel = y,
+        //             MouseWheel {
+        //                 delta: MouseScrollDelta::PixelDelta(pos),
+        //                 phase: TouchPhase::Moved,
+        //                 ..
+        //             } => mouse_state.wheel = pos.y as f32,
+        //             KeyboardInput { input, .. } => match input.virtual_keycode.unwrap() {
+        //                 VirtualKeyCode::Key1 => state.keypad[0] = true,
+        //                 VirtualKeyCode::Key2 => state.keypad[1] = true,
+        //                 VirtualKeyCode::Key3 => state.keypad[2] = true,
+        //                 VirtualKeyCode::Q => state.keypad[3] = true,
+        //                 VirtualKeyCode::W => state.keypad[4] = true,
+        //                 VirtualKeyCode::E => state.keypad[5] = true,
+        //                 VirtualKeyCode::A => state.keypad[6] = true,
+        //                 VirtualKeyCode::S => state.keypad[7] = true,
+        //                 VirtualKeyCode::D => state.keypad[8] = true,
+        //                 VirtualKeyCode::Z => state.keypad[9] = true,
+        //                 VirtualKeyCode::X => state.keypad[10] = true,
+        //                 VirtualKeyCode::C => state.keypad[11] = true,
+        //                 VirtualKeyCode::Key4 => state.keypad[12] = true,
+        //                 VirtualKeyCode::R => state.keypad[13] = true,
+        //                 VirtualKeyCode::F => state.keypad[14] = true,
+        //                 VirtualKeyCode::V => state.keypad[15] = true,
+        //                 _ => (),
+        //             },
+        //             _ => (),
+        //         }
+        //     }
+        // });
 
         for i in 0..9 {
+            // for i in 0..state.keypad.len() - 1 {
+            //     state.keypad[i] = false;
+            // }
+            events_loop.poll_events(|event| {
+                if let WindowEvent { event, .. } = event {
+                    match event {
+                        CloseRequested => closed = true,
+                        CursorMoved {
+                            position: LogicalPosition { x, y },
+                            ..
+                        } => mouse_state.pos = [x as f32, y as f32],
+                        MouseInput { state, button, .. } => match button {
+                            MouseButton::Left => mouse_state.pressed[0] = state == Pressed,
+                            MouseButton::Right => mouse_state.pressed[1] = state == Pressed,
+                            MouseButton::Middle => mouse_state.pressed[2] = state == Pressed,
+                            _ => {}
+                        },
+                        MouseWheel {
+                            delta: MouseScrollDelta::LineDelta(_, y),
+                            phase: TouchPhase::Moved,
+                            ..
+                        } => mouse_state.wheel = y,
+                        MouseWheel {
+                            delta: MouseScrollDelta::PixelDelta(pos),
+                            phase: TouchPhase::Moved,
+                            ..
+                        } => mouse_state.wheel = pos.y as f32,
+                        KeyboardInput { input, .. } => match input.virtual_keycode.unwrap() {
+                            VirtualKeyCode::Key1 => state.keypad[1] = is_key_pressed(input.state),
+                            VirtualKeyCode::Key2 => state.keypad[2] = is_key_pressed(input.state),
+                            VirtualKeyCode::Key3 => state.keypad[3] = is_key_pressed(input.state),
+                            VirtualKeyCode::Q => state.keypad[4] = is_key_pressed(input.state),
+                            VirtualKeyCode::W => state.keypad[5] = is_key_pressed(input.state),
+                            VirtualKeyCode::E => state.keypad[6] = is_key_pressed(input.state),
+                            VirtualKeyCode::A => state.keypad[7] = is_key_pressed(input.state),
+                            VirtualKeyCode::S => state.keypad[8] = is_key_pressed(input.state),
+                            VirtualKeyCode::D => state.keypad[9] = is_key_pressed(input.state),
+                            VirtualKeyCode::Z => state.keypad[10] = is_key_pressed(input.state),
+                            VirtualKeyCode::X => state.keypad[0] = is_key_pressed(input.state),
+                            VirtualKeyCode::C => state.keypad[11] = is_key_pressed(input.state),
+                            VirtualKeyCode::Key4 => state.keypad[12] = is_key_pressed(input.state),
+                            VirtualKeyCode::R => state.keypad[13] = is_key_pressed(input.state),
+                            VirtualKeyCode::F => state.keypad[14] = is_key_pressed(input.state),
+                            VirtualKeyCode::V => state.keypad[15] = is_key_pressed(input.state),
+                            _ => (),
+                        },
+                        _ => (),
+                    }
+                }
+            });
             if simmulation_running || simmulation_step {
                 execute(&mut state);
                 if i == 0 {

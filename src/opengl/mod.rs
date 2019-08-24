@@ -13,10 +13,10 @@ pub struct Vertex {
 implement_vertex!(Vertex, position, color);
 
 pub fn create_window() -> (glium::Display, glutin::EventsLoop) {
-    let mut events_loop = glutin::EventsLoop::new();
+    let events_loop = glutin::EventsLoop::new();
     let window_builder = glutin::WindowBuilder::new()
         .with_title("Chipster8")
-        .with_dimensions(glutin::dpi::LogicalSize::new(800.0, 400.0));
+        .with_dimensions(glutin::dpi::LogicalSize::new(1024.0, 768.0));
     let window_context = glutin::ContextBuilder::new();
     let display = glium::Display::new(window_builder, window_context, &events_loop).unwrap();
 

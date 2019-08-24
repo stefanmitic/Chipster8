@@ -267,7 +267,7 @@ impl Instruction {
                         } else {
                             state.v[15] = 0;
                         }
-                        state.v[x as usize] = (result % 0xFF) as u8;
+                        state.v[x as usize] = result as u8;
                         state.pc += 2;
                         true
                     }),
@@ -449,6 +449,8 @@ impl Instruction {
                         if state.keypad[state.v[x as usize] as usize] {
                             state.pc += 2;
                         }
+
+                        state.pc += 2;
                         true
                     }),
                 },
@@ -461,6 +463,8 @@ impl Instruction {
                         if !state.keypad[state.v[x as usize] as usize] {
                             state.pc += 2;
                         }
+
+                        state.pc += 2;
                         true
                     }),
                 },
@@ -643,7 +647,7 @@ mod tests {
         state.push(0xB);
 
         assert_eq!(true, instruction.function(&mut state));
-        assert_eq!(0xB, state.pc);
+        assert_eq!(0xD, state.pc);
         assert_eq!(0, state.sp);
     }
 
@@ -692,11 +696,11 @@ mod tests {
         let instruction = Instruction::new(0x31AA); // V1 == 0xAA
 
         assert_eq!(true, instruction.function(&mut state));
-        assert_eq!(0x200, state.pc);
+        assert_eq!(0x202, state.pc);
 
         state.v[1] = 0xAA;
         assert_eq!(true, instruction.function(&mut state));
-        assert_eq!(0x202, state.pc);
+        assert_eq!(0x206, state.pc);
     }
 
     #[test]
@@ -706,11 +710,11 @@ mod tests {
         let instruction = Instruction::new(0x41AA); // V1 != 0xAA
 
         assert_eq!(true, instruction.function(&mut state));
-        assert_eq!(0x202, state.pc);
+        assert_eq!(0x204, state.pc);
 
         state.v[1] = 0xAA;
         assert_eq!(true, instruction.function(&mut state));
-        assert_eq!(0x202, state.pc);
+        assert_eq!(0x206, state.pc);
     }
 
     #[test]
@@ -720,11 +724,11 @@ mod tests {
         let instruction = Instruction::new(0x5010); // V0 == V1
 
         assert_eq!(true, instruction.function(&mut state));
-        assert_eq!(0x202, state.pc);
+        assert_eq!(0x204, state.pc);
 
         state.v[0] = 0xAA;
         assert_eq!(true, instruction.function(&mut state));
-        assert_eq!(0x202, state.pc);
+        assert_eq!(0x206, state.pc);
     }
 
     #[test]
@@ -743,9 +747,9 @@ mod tests {
         let mut state = State::new();
         let instruction = Instruction::new(0x71AA); // V1 += 0xAA
 
-        state.v[1] = 1;
+        state.v[1] = 0xFF;
         assert_eq!(true, instruction.function(&mut state));
-        assert_eq!(0xAB, state.v[1]);
+        assert_eq!(0xA9, state.v[1]);
     }
 
     #[test]
@@ -809,7 +813,7 @@ mod tests {
         state.v[2] = 0xF0;
         let expected = ((state.v[1] as u16 + state.v[2] as u16) % 0xFF) as u8;
         assert_eq!(true, instruction.function(&mut state));
-        assert_eq!(expected, state.v[1]);
+        assert_eq!(0xEF, state.v[1]);
         assert_eq!(1, state.v[15]);
 
         // without overlflow
@@ -955,11 +959,11 @@ mod tests {
         let instruction = Instruction::new(0xE19E); // V1
 
         assert_eq!(true, instruction.function(&mut state));
-        assert_eq!(0x200, state.pc);
+        assert_eq!(0x202, state.pc);
         state.v[1] = 2;
         state.keypad[2] = true;
         assert_eq!(true, instruction.function(&mut state));
-        assert_eq!(0x202, state.pc);
+        assert_eq!(0x206, state.pc);
     }
 
     #[test]
@@ -969,11 +973,11 @@ mod tests {
         let instruction = Instruction::new(0xE1A1); // V1
 
         assert_eq!(true, instruction.function(&mut state));
-        assert_eq!(0x202, state.pc);
+        assert_eq!(0x204, state.pc);
         state.v[1] = 2;
         state.keypad[2] = true;
         assert_eq!(true, instruction.function(&mut state));
-        assert_eq!(0x202, state.pc);
+        assert_eq!(0x206, state.pc);
     }
 
     #[test]
