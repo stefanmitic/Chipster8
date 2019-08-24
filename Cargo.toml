@@ -12,6 +12,7 @@ imgui = {git = "https://github.com/Gekkio/imgui-rs"}
 imgui-glium-renderer = {git = "https://github.com/Gekkio/imgui-rs"}
 imgui-sys = {git = "https://github.com/Gekkio/imgui-rs"}
 glium = "0.25.1"
+rodio = "0.9.0"
 
 # [dependencies.sdl2]
 # version = "0.32.2"

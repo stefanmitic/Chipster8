@@ -4,6 +4,9 @@ extern crate glium;
 extern crate imgui;
 extern crate imgui_glium_renderer;
 extern crate rand;
+extern crate rodio;
+
+use rodio::Source;
 
 use glium::glutin::{
     dpi::LogicalPosition, ElementState, ElementState::Pressed, Event::WindowEvent, MouseButton,
@@ -70,7 +73,10 @@ fn update_timers(state: &mut State) {
     }
 
     if state.st > 0 {
+        state.audio_output.play();
         state.st -= 1;
+    } else {
+        state.audio_output.pause();
     }
 }
 
@@ -104,61 +110,7 @@ fn main() {
     load_program(path::Path::new(&args[1]), &mut state);
 
     while !closed {
-        // for i in 0..state.keypad.len() - 1 {
-        //     state.keypad[i] = false;
-        // }
-        // events_loop.poll_events(|event| {
-        //     if let WindowEvent { event, .. } = event {
-        //         match event {
-        //             CloseRequested => closed = true,
-        //             CursorMoved {
-        //                 position: LogicalPosition { x, y },
-        //                 ..
-        //             } => mouse_state.pos = [x as f32, y as f32],
-        //             MouseInput { state, button, .. } => match button {
-        //                 MouseButton::Left => mouse_state.pressed[0] = state == Pressed,
-        //                 MouseButton::Right => mouse_state.pressed[1] = state == Pressed,
-        //                 MouseButton::Middle => mouse_state.pressed[2] = state == Pressed,
-        //                 _ => {}
-        //             },
-        //             MouseWheel {
-        //                 delta: MouseScrollDelta::LineDelta(_, y),
-        //                 phase: TouchPhase::Moved,
-        //                 ..
-        //             } => mouse_state.wheel = y,
-        //             MouseWheel {
-        //                 delta: MouseScrollDelta::PixelDelta(pos),
-        //                 phase: TouchPhase::Moved,
-        //                 ..
-        //             } => mouse_state.wheel = pos.y as f32,
-        //             KeyboardInput { input, .. } => match input.virtual_keycode.unwrap() {
-        //                 VirtualKeyCode::Key1 => state.keypad[0] = true,
-        //                 VirtualKeyCode::Key2 => state.keypad[1] = true,
-        //                 VirtualKeyCode::Key3 => state.keypad[2] = true,
-        //                 VirtualKeyCode::Q => state.keypad[3] = true,
-        //                 VirtualKeyCode::W => state.keypad[4] = true,
-        //                 VirtualKeyCode::E => state.keypad[5] = true,
-        //                 VirtualKeyCode::A => state.keypad[6] = true,
-        //                 VirtualKeyCode::S => state.keypad[7] = true,
-        //                 VirtualKeyCode::D => state.keypad[8] = true,
-        //                 VirtualKeyCode::Z => state.keypad[9] = true,
-        //                 VirtualKeyCode::X => state.keypad[10] = true,
-        //                 VirtualKeyCode::C => state.keypad[11] = true,
-        //                 VirtualKeyCode::Key4 => state.keypad[12] = true,
-        //                 VirtualKeyCode::R => state.keypad[13] = true,
-        //                 VirtualKeyCode::F => state.keypad[14] = true,
-        //                 VirtualKeyCode::V => state.keypad[15] = true,
-        //                 _ => (),
-        //             },
-        //             _ => (),
-        //         }
-        //     }
-        // });
-
         for i in 0..9 {
-            // for i in 0..state.keypad.len() - 1 {
-            //     state.keypad[i] = false;
-            // }
             events_loop.poll_events(|event| {
                 if let WindowEvent { event, .. } = event {
                     match event {

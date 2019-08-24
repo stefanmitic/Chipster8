@@ -1,4 +1,5 @@
 use crate::display::Display;
+use rodio;
 use std::fmt;
 
 // #[derive(Debug)]
@@ -13,6 +14,7 @@ pub struct State {
     pub keypad: [bool; 16],
     pub display: Display,
     pub ram: [u8; 4095],
+    pub audio_output: rodio::Sink,
 }
 
 impl fmt::Debug for State {
@@ -44,11 +46,13 @@ impl State {
             display: Display::new(),
             keypad: [false; 16],
             ram: [0; 0xFFF],
+            audio_output: rodio::Sink::new(&rodio::default_output_device().unwrap()),
         }
         .fill_ram()
+        .fill_sound()
     }
 
-    fn fill_ram(mut self) -> State {
+    fn fill_ram(mut self) -> Self {
         let character_data = [
             0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
             0x20, 0x60, 0x20, 0x20, 0x70, // 1
@@ -69,6 +73,12 @@ impl State {
         ];
         self.ram[0..80].copy_from_slice(&character_data);
 
+        self
+    }
+
+    fn fill_sound(self) -> Self {
+        self.audio_output.append(rodio::source::SineWave::new(392));
+        self.audio_output.pause();
         self
     }
 
