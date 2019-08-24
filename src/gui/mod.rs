@@ -73,19 +73,19 @@ impl Gui {
             StyleVar::WindowRounding(0.0),
             StyleVar::WindowBorderSize(0.0),
         ]);
-        ui.window(im_str!("Display"))
+        imgui::Window::new(im_str!("Display"))
             .title_bar(false)
             .resizable(false)
             .size([400.0, 200.0], imgui::Condition::Always)
-            .build(|| {
-                Image::new(&ui, game_display_texture_id, [400.0, 200.0]).build();
+            .build(&ui, || {
+                Image::new(game_display_texture_id, [400.0, 200.0]).build(&ui);
             });
 
-        std::mem::drop(display_window_style_token);
+        display_window_style_token.pop(&ui);
 
-        ui.window(im_str!("Registers"))
+        imgui::Window::new(im_str!("Registers"))
             .size([100.0, 0.0], imgui::Condition::Always)
-            .build(|| {
+            .build(&ui, || {
                 for i in 0..15 {
                     ui.text(im_str!("V{:01X}: {:02X}", i, state.v[i]));
                 }
@@ -97,17 +97,17 @@ impl Gui {
                 ui.text(im_str!("ST: {:02X}", state.st));
             });
 
-        ui.window(im_str!("Stack"))
+        imgui::Window::new(im_str!("Stack"))
             .size([100.0, 0.0], imgui::Condition::Always)
-            .build(|| {
+            .build(&ui, || {
                 for i in 0..15 {
                     ui.text(im_str!("{:01X}: {:04X}", i, state.stack[i]));
                 }
             });
 
-        ui.window(im_str!("Control"))
+        imgui::Window::new(im_str!("Control"))
             .size([0.0, 0.0], imgui::Condition::Always)
-            .build(|| {
+            .build(&ui, || {
                 ui_action = UiAction::None;
                 let mut x = 8f32;
                 if ui.button(im_str!("Run"), [0.0, 20.0]) {
@@ -125,23 +125,34 @@ impl Gui {
                 }
             });
 
-        ui.window(im_str!("Code"))
+        imgui::Window::new(im_str!("Code"))
             .size([0.0, 0.0], imgui::Condition::Always)
-            .build(|| {
+            .build(&ui, || {
                 for i in (0x200..(state.ram.len() - 1)).step_by(2) {
-                    let _token: ColorStackToken;
-                    if i == state.pc as usize {
-                        _token = ui.push_style_colors(&[(StyleColor::Text, [1.0, 0.0, 0.0, 1.0])]);
-                    }
-
                     let instruction =
                         Instruction::new(((state.ram[i]) as u16) << 8 | state.ram[i + 1] as u16);
-                    ui.text(im_str!(
-                        "{:04X}: {} ({:04X})",
-                        i,
-                        instruction.code,
-                        instruction.opcode
-                    ));
+                    if i == state.pc as usize {
+                        let token =
+                            ui.push_style_colors(&[(StyleColor::Text, [1.0, 0.0, 0.0, 1.0])]);
+
+                        ui.text(im_str!(
+                            "{:04X}: {} ({:04X})",
+                            i,
+                            instruction.code,
+                            instruction.opcode
+                        ));
+
+                        ui.set_scroll_here_y();
+
+                        token.pop(&ui);
+                    } else {
+                        ui.text(im_str!(
+                            "{:04X}: {} ({:04X})",
+                            i,
+                            instruction.code,
+                            instruction.opcode
+                        ));
+                    }
                 }
             });
 

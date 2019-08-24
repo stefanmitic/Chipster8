@@ -8,9 +8,9 @@ edition = "2018"
 
 [dependencies]
 rand = "0.7.0"
-imgui = "0.1.0"
-imgui-glium-renderer = "0.1.0"
-imgui-sys = "0.1.0"
+imgui = {git = "https://github.com/Gekkio/imgui-rs"}
+imgui-glium-renderer = {git = "https://github.com/Gekkio/imgui-rs"}
+imgui-sys = {git = "https://github.com/Gekkio/imgui-rs"}
 glium = "0.25.1"
 
 # [dependencies.sdl2]

@@ -449,7 +449,6 @@ impl Instruction {
                         if state.keypad[state.v[x as usize] as usize] {
                             state.pc += 2;
                         }
-                        state.pc += 2;
                         true
                     }),
                 },
@@ -462,7 +461,6 @@ impl Instruction {
                         if !state.keypad[state.v[x as usize] as usize] {
                             state.pc += 2;
                         }
-                        state.pc += 2;
                         true
                     }),
                 },
@@ -494,16 +492,12 @@ impl Instruction {
                     code: String::from(format!("LD V{:01X}, K", get_x(opcode))),
                     function: Box::new(|opcode, state| {
                         let x = get_x(opcode);
-                        let mut key_pressed = false;
-                        while !key_pressed {
-                            for (i, k) in state.keypad.iter().enumerate() {
-                                if *k {
-                                    state.v[x as usize] = i as u8;
-                                    key_pressed = true;
-                                }
+                        for (i, k) in state.keypad.iter().enumerate() {
+                            if *k {
+                                state.v[x as usize] = i as u8;
+                                state.pc += 2;
                             }
                         }
-                        state.pc += 2;
                         true
                     }),
                 },

@@ -96,7 +96,6 @@ fn main() {
     }
     load_program(path::Path::new(&args[1]), &mut state);
 
-    let mut cycles_passed = 0;
     while !closed {
         events_loop.poll_events(|event| {
             if let WindowEvent { event, .. } = event {
@@ -127,27 +126,15 @@ fn main() {
             }
         });
 
-        if simmulation_running || simmulation_step {
-            execute(&mut state);
-            // if cycles_passed >= 10 {
-            update_timers(&mut state);
-            //     cycles_passed = 0;
-            // } else {
-            //     cycles_passed += 1;
-            // }
-            simmulation_step = false;
+        for i in 0..9 {
+            if simmulation_running || simmulation_step {
+                execute(&mut state);
+                if i == 0 {
+                    update_timers(&mut state);
+                }
+                simmulation_step = false;
+            }
         }
-
-        let now = Instant::now();
-        let delta = now - last_frame;
-        let delta_s = delta.as_secs() as f32 + delta.subsec_nanos() as f32 / 1_000_000_000.0;
-        last_frame = now;
-
-        // if delta_s < 1.0 / 60.0 {
-        //     std::thread::sleep(std::time::Duration::from_millis(
-        //         (1000.0 * (1.0 / 60.0)) as u64,
-        //     ));
-        // }
 
         gui.update_mouse_state(&mut mouse_state);
         let shape = opengl::generate_display(&state);
@@ -179,6 +166,12 @@ fn main() {
             UiAction::None => (),
         }
 
-        ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 600));
+        let now = Instant::now();
+        let delta = now - last_frame;
+        last_frame = now;
+
+        if delta < Duration::from_millis(16) {
+            ::std::thread::sleep(Duration::from_millis(16) - delta);
+        }
     }
 }
